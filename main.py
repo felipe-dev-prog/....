@@ -421,35 +421,35 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         texto = "🏆 **HALL DA FAMA - TOP 5**\n" + "\n".join([f"#{i} **{r['nome']}** - Nível `{r['nivel']}`" for i, r in enumerate(top_players, 1)])
         await query.edit_message_text(texto, parse_mode="Markdown", reply_markup=kb_voltar())
 
-# =====================================================================
+# # =====================================================================
 # CONFIGURAÇÃO DE WEBHOOK PARA A NUVEM
 # =====================================================================
-def main_bot():
+if __name__ == "__main__":
     init_db()
+    
+    PORT = int(os.environ.get("PORT", 8080))
+    RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL")
+    
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("darvip", cmd_darvip))
     app.add_handler(CallbackQueryHandler(callback_router))
     
-    # Pega a URL do Render automaticamente ou usa webhooks locais
-    PORT = int(os.environ.get("PORT", 8080))
-    RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL") # O Render preenche isso sozinho
-
     if RENDER_URL:
         webhook_url = f"{RENDER_URL}/{TOKEN}"
         print(f"🚀 Iniciando bot via Webhook em: {webhook_url}")
+        
+        # Inicia o Flask numa thread separada
+        import threading
+        threading.Thread(target=lambda: server.run(host="0.0.0.0", port=PORT), daemon=True).start()
+        
+        # Inicia o Webhook do Telegram
         app.run_webhook(
             listen="0.0.0.0",
-            port=PORT,
+            port=PORT + 1,  # Usamos uma porta diferente para o Telegram se o Flask usar a PORT principal, ou deixamos o Flask gerir
             url_path=TOKEN,
             webhook_url=webhook_url
         )
     else:
         print("🚀 Iniciando bot via Polling local...")
-        app.run_polling()
-
-if __name__ == "__main__":
-    import threading
-    # Roda o Flask em background para atender o Render
-    threading.Thread(target=lambda: server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))).start()
-    main_bot()
+        server.run(host="0.0.0.0", port=PORT)
