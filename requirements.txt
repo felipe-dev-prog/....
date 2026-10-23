@@ -1,0 +1,4 @@
+python-telegram-bot[webhooks]
+flask
+mercadopago
+psycopg2-binary
